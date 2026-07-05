@@ -3,57 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flash Aléatoire</title>
+    <title>Flash Rythme Musique</title>
     <style>
         body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #111; color: #fff; }
-        .status { font-size: 1.2rem; color: #ffeb3b; }
+        button { padding: 15px 30px; font-size: 1.2rem; font-weight: bold; background-color: #ffeb3b; border: none; border-radius: 25px; cursor: pointer; margin-top: 20px; }
+        button:active { transform: scale(0.98); }
+        .status { font-size: 1.1rem; color: #bbb; margin-top: 20px; }
     </style>
 </head>
 <body>
-    <h2>Hello NESSRINE Mode Flash Aléatoire Activé ⚡</h2>
-    <p class="status">Le flash clignote à un rythme imprévisible.</p>
+    <h2>⚡ Flash Synchro Basse ⚡</h2>
+    <p>Mets de la musique avec de bonnes basses à côté du téléphone.</p>
+    
+    <button id="startBtn">Activer le micro & le flash</button>
+    <p class="status" id="statusText">En attente d'activation...</p>
 
     <script>
-        navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment' }
-        })
-        .then((stream) => {
-            const track = stream.getVideoTracks()[0];
-            const capabilities = track.getCapabilities();
+        const startBtn = document.getElementById('startBtn');
+        const statusText = document.getElementById('statusText');
+
+        startBtn.addEventListener('click', async () => {
+            statusText.innerText = "Demande d'autorisations...";
             
-            if (capabilities.torch) {
+            try {
+                // 1. On demande l'accès au micro ET à la caméra arrière
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: { facingMode: 'environment' }
+                });
+
+                statusText.innerText = "Analyse de la musique en cours...";
+                startBtn.style.display = 'none'; // Cache le bouton une fois lancé
+
+                // 2. Configuration du contrôle du flash
+                const videoTrack = stream.getVideoTracks()[0];
+                
+                // 3. Configuration de l'analyseur audio
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(stream);
+                const analyser = audioContext.createAnalyser();
+                
+                analyser.fftSize = 64; // Petite taille pour analyser rapidement le rythme
+                source.connect(analyser);
+                
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+
                 let flashOn = false;
 
-                function clignoter() {
-                    flashOn = !flashOn; // Alterne l'état (allumé/éteint)
+                function analyserAudio() {
+                    analyser.getByteFrequencyData(dataArray);
                     
-                    track.applyConstraints({
-                        advanced: [{ torch: flashOn }]
-                    })
-                    .then(() => {
-                        // Génère un temps aléatoire entre 50ms et 400ms
-                        const tempsAleatoire = Math.floor(Math.random() * (400 - 50 + 1)) + 50;
-                        
-                        // Relance la fonction après ce délai aléatoire
-                        setTimeout(clignoter, tempsAleatoire);
-                    })
-                    .catch(err => {
-                        console.error("Erreur flash :", err);
-                        // En cas d'erreur temporaire, on relance quand même après 200ms
-                        setTimeout(clignoter, 200);
-                    });
+                    // Les basses fréquences se trouvent au tout début du tableau de données (index 0 à 2)
+                    let totalBasses = 0;
+                    for (let i = 0; i < 3; i++) {
+                        totalBasses += dataArray[i];
+                    }
+                    let moyenneBasses = totalBasses / 3;
+
+                    // LE SEUIL (Sensibilité) : 180 est une valeur standard pour un volume moyen.
+                    // Si le niveau des basses dépasse ce seuil, on allume le flash.
+                    if (moyenneBasses > 180) {
+                        if (!flashOn) {
+                            flashOn = true;
+                            controlerFlash(true);
+                        }
+                    } else {
+                        if (flashOn) {
+                            flashOn = false;
+                            controlerFlash(false);
+                        }
+                    }
+
+                    requestAnimationFrame(analyserAudio); // Répète l'analyse en continu de manière fluide
                 }
 
-                // Premier lancement de la boucle
-                clignoter();
+                function controlerFlash(etat) {
+                    const capabilities = videoTrack.getCapabilities();
+                    if (capabilities.torch) {
+                        videoTrack.applyConstraints({
+                            advanced: [{ torch: etat }]
+                        }).catch(err => console.error(err));
+                    }
+                }
 
-            } else {
-                alert("Le flash n'est pas supporté sur ce navigateur/appareil.");
+                // Lancement de la boucle d'analyse
+                analyserAudio();
+
+            } catch (err) {
+                console.error("Erreur : ", err);
+                statusText.innerText = "Erreur : Assurez-vous d'accepter le micro ET la caméra.";
+                statusText.style.color = '#ff5252';
             }
-        })
-        .catch((err) => {
-            console.error("Erreur accès caméra : ", err);
-            alert("Impossible d'activer le flash sans l'accès caméra.");
         });
     </script>
 </body>
