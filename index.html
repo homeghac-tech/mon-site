@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activation du Flash</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+    </style>
+</head>
+<body>
+    <h2>Activation du flash en cours...</h2>
+    <p>Veuillez accepter l'accès à la caméra si demandé.</p>
+
+    <script>
+        // On demande l'accès à la caméra arrière (environment)
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        })
+        .then((stream) => {
+            const track = stream.getVideoTracks()[0];
+            
+            // On vérifie si le navigateur et le téléphone supportent l'option "torche"
+            const capabilities = track.getCapabilities();
+            if (capabilities.torch) {
+                // On allume le flash
+                track.applyConstraints({
+                    advanced: [{ torch: true }]
+                }).catch(err => console.error("Erreur application flash:", err));
+            } else {
+                alert("Le flash (mode torche) n'est pas supporté par ce navigateur ou ce téléphone.");
+            }
+        })
+        .catch((err) => {
+            console.error("Erreur accès caméra : ", err);
+            alert("Impossible d'allumer le flash sans l'autorisation de la caméra.");
+        });
+    </script>
+</body>
+</html>
