@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flash Aléatoire</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; background-color: #111; color: #fff; }
+        .status { font-size: 1.2rem; color: #ffeb3b; }
+    </style>
+</head>
+<body>
+    <h2>Mode Flash Aléatoire Activé ⚡</h2>
+    <p class="status">Le flash clignote à un rythme imprévisible.</p>
+
+    <script>
+        navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'environment' }
+        })
+        .then((stream) => {
+            const track = stream.getVideoTracks()[0];
+            const capabilities = track.getCapabilities();
+            
+            if (capabilities.torch) {
+                let flashOn = false;
+
+                function clignoter() {
+                    flashOn = !flashOn; // Alterne l'état (allumé/éteint)
+                    
+                    track.applyConstraints({
+                        advanced: [{ torch: flashOn }]
+                    })
+                    .then(() => {
+                        // Génère un temps aléatoire entre 50ms et 400ms
+                        const tempsAleatoire = Math.floor(Math.random() * (400 - 50 + 1)) + 50;
+                        
+                        // Relance la fonction après ce délai aléatoire
+                        setTimeout(clignoter, tempsAleatoire);
+                    })
+                    .catch(err => {
+                        console.error("Erreur flash :", err);
+                        // En cas d'erreur temporaire, on relance quand même après 200ms
+                        setTimeout(clignoter, 200);
+                    });
+                }
+
+                // Premier lancement de la boucle
+                clignoter();
+
+            } else {
+                alert("Le flash n'est pas supporté sur ce navigateur/appareil.");
+            }
+        })
+        .catch((err) => {
+            console.error("Erreur accès caméra : ", err);
+            alert("Impossible d'activer le flash sans l'accès caméra.");
+        });
+    </script>
+</body>
+</html>
